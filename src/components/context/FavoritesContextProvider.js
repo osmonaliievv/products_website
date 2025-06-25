@@ -1,18 +1,19 @@
 import React, { createContext, useContext, useReducer } from "react";
 import { ACTIONS } from "../../helpers/const";
-import { getLocalStorageFavorites } from "../../helpers/functions";
+import { getLocalStorageFavorites } from "../../helpers/functions"; // Убедитесь, что эта функция корректна
 
-// Контекст и хук
-const favoritesContext = createContext();
-export const useLike = () => useContext(favoritesContext);
+export const favorites = createContext();
+export const useLike = () => useContext(favorites);
 
-// Начальное состояние
 const INIT_STATE = {
-  like: JSON.parse(localStorage.getItem("like")) || { products: [] },
+  // Инициализируем like из localStorage при первой загрузке
+  // Если localStorage.getItem("like") вернет null, JSON.parse(null) будет null
+  // Затем, если like будет null в reducer, он будет инициализирован как { products: [] }
+  like: JSON.parse(localStorage.getItem("like")),
 };
 
-// Редьюсер
-const reducer = (state = INIT_STATE, action) => {
+const reducer = (state, action) => {
+  // Убрал state = INIT_STATE, так как useReducer уже устанавливает начальное состояние
   switch (action.type) {
     case ACTIONS.GET_LIKE:
       return { ...state, like: action.payload };
@@ -21,71 +22,92 @@ const reducer = (state = INIT_STATE, action) => {
   }
 };
 
-// Провайдер
 const FavoritesContextProvider = ({ children }) => {
   const [state, dispatch] = useReducer(reducer, INIT_STATE);
 
-  // Получить избранное из localStorage
+  // ! GET LIKES
   const getLike = () => {
-    let like = getLocalStorageFavorites();
+    let like = getLocalStorageFavorites(); // Получаем избранное из localStorage
     if (!like) {
+      // Если избранного нет, инициализируем его
       like = { products: [] };
       localStorage.setItem("like", JSON.stringify(like));
     }
-    dispatch({ type: ACTIONS.GET_LIKE, payload: like });
+    dispatch({
+      type: ACTIONS.GET_LIKE,
+      payload: like,
+    });
   };
 
-  // Добавить или удалить товар из избранного
+  // ! ADD/REMOVE PRODUCT TO/FROM LIKES
   const addProductsToLike = (product) => {
-    let like = getLocalStorageFavorites() || { products: [] };
+    let like = getLocalStorageFavorites();
+    if (!like) {
+      like = { products: [] };
+    }
 
-    const isLiked = like.products.some((elem) => elem.item.id === product.id);
+    // Проверяем, есть ли продукт уже в избранном
+    // Использование some() более эффективно, чем filter() для проверки наличия
+    const isProductInLike = like.products.some(
+      (elem) => elem.item.id === product.id
+    );
 
-    if (isLiked) {
+    if (!isProductInLike) {
+      // Если продукта нет, добавляем его
+      like.products.push({ item: product });
+    } else {
+      // Если продукт уже есть, удаляем его (это логика переключения "добавить/удалить")
       like.products = like.products.filter(
         (elem) => elem.item.id !== product.id
       );
-    } else {
-      like.products.push({ item: product });
     }
 
     localStorage.setItem("like", JSON.stringify(like));
-    dispatch({ type: ACTIONS.GET_LIKE, payload: like });
+    dispatch({
+      type: ACTIONS.GET_LIKE,
+      payload: like,
+    });
   };
 
-  // Проверить, есть ли товар в избранном
+  // ! CHECK PRODUCT IN LIKES
   const checkProductInLike = (id) => {
-    const like = getLocalStorageFavorites();
-    if (like) {
+    let like = getLocalStorageFavorites();
+    if (like && like.products) {
+      // Добавлена проверка на like.products, чтобы избежать ошибок
+      // Используем some() для проверки наличия
       return like.products.some((elem) => elem.item.id === id);
     }
-    return false;
+    return false; // Если избранного нет или оно пустое, продукт не найден
   };
 
-  // Удалить товар из избранного
+  // ! DELETE PRODUCT FROM LIKES (specific delete, not toggle)
   const deleteProductFromLike = (id) => {
     let like = getLocalStorageFavorites();
-    if (!like) return;
-
-    like.products = like.products.filter((elem) => elem.item.id !== id);
-    localStorage.setItem("like", JSON.stringify(like));
-    dispatch({ type: ACTIONS.GET_LIKE, payload: like });
+    if (like && like.products) {
+      like.products = like.products.filter((elem) => elem.item.id !== id);
+      localStorage.setItem("like", JSON.stringify(like));
+      dispatch({
+        type: ACTIONS.GET_LIKE,
+        payload: like,
+      });
+    }
   };
 
-  // Значения, доступные через контекст
+  // Вызываем getLike при первой загрузке компонента, чтобы синхронизировать состояние
+  // Context с localStorage. Это лучше делать в useEffect в провайдере.
+  React.useEffect(() => {
+    getLike();
+  }, []); // Пустой массив зависимостей означает, что useEffect выполнится один раз при монтировании
+
   const values = {
     like: state.like,
-    getLike,
-    addProductsToLike,
     deleteProductFromLike,
     checkProductInLike,
+    addProductsToLike,
+    getLike,
   };
 
-  return (
-    <favoritesContext.Provider value={values}>
-      {children}
-    </favoritesContext.Provider>
-  );
+  return <favorites.Provider value={values}>{children}</favorites.Provider>;
 };
 
 export default FavoritesContextProvider;
