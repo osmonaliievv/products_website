@@ -7,4 +7,5 @@ export const ACTIONS = {
   GET_CART: "GET_CART",
   GET_LIKE: "GET_LIKE",
 };
-export const ADMIN = "admin@gmail.com";
+export const ADMIN = "adilnur@gmail.com";
+//! Пароль от админки = 123456789
