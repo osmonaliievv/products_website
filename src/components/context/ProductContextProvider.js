@@ -1,4 +1,3 @@
-// ProductContext.js (ваш файл контекста)
 import React, { createContext, useContext, useReducer } from "react";
 import { useNavigate } from "react-router-dom";
 import { ACTIONS, API, API_CATEGORIES } from "../../helpers/const";
@@ -85,6 +84,8 @@ const ProductContextProvider = ({ children }) => {
     clearError();
     try {
       // Используем axios для запроса к API
+      // Если window.location.search пуст, это будет просто /api/products
+      // Если есть параметры, например ?category=electronics, это будет /api/products?category=electronics
       const { data } = await axios(`${API}${window.location.search}`);
       dispatch({
         type: ACTIONS.GET_PRODUCTS,
@@ -93,6 +94,8 @@ const ProductContextProvider = ({ children }) => {
     } catch (error) {
       console.error("Ошибка при получении продуктов:", error);
       setError(error.message || "Не удалось получить список продуктов.");
+    } finally {
+      setLoading(false); // Завершаем загрузку даже при ошибке
     }
   };
 
@@ -124,6 +127,8 @@ const ProductContextProvider = ({ children }) => {
     } catch (error) {
       console.error("Ошибка при получении одного продукта:", error);
       setError(error.message || "Не удалось получить данные продукта.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -155,6 +160,8 @@ const ProductContextProvider = ({ children }) => {
     } catch (error) {
       console.error("Ошибка при получении категорий:", error);
       setError(error.message || "Не удалось получить список категорий.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -185,7 +192,7 @@ const ProductContextProvider = ({ children }) => {
     navigate(url);
     // После изменения URL, если вам нужно немедленно обновить список,
     // вы можете вызвать getProducts() здесь.
-    // getProducts();
+    // getProducts(); // Раскомментируйте, если нужно немедленное обновление после фильтрации/поиска
   };
 
   const values = {
